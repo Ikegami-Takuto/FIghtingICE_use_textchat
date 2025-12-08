@@ -64,6 +64,8 @@ FightingICEを起動してAIの選択時にBitNetAIを選択します.
 Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE
 If you don't know how to contoroll FightingICE, Please ask me.
 
+まずはじめに, client_test.pyのCHANNELを  #[配信しているアカウントの名前]　に変えてください
+
 Excute new terminal.
 ```bash
 cd client
