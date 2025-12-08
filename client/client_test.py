@@ -6,7 +6,7 @@ from pathlib import Path
 from llama_cpp import Llama 
 import bitNetToFightingICE_pb2 as pb2
 import bitNetToFightingICE_pb2_grpc as pb2_grpc
-from get_comment import ConnectionTwich
+from get_comment_new import ConnectionTwich
 
 # ==========================================
 connectionTwich = ConnectionTwich()
@@ -17,8 +17,8 @@ MODEL_PATH = str(Path(os.getcwd(), "qwen2.5-0.5b-instruct-q4_k_m.gguf"))
 
 # ★デバッグモード切替
 # True : キーボードで「疑似音声入力」を行うモード
-# False: AIが勝手に戦うモード
-DEBUG_VOICE_MODE = True 
+# False: 音声入力あり
+DEBUG_VOICE_MODE = False 
 
 action_labels =[
     "FORWARD_WALK",
@@ -116,12 +116,14 @@ def run():
                         current_voice_order = user_input
                     
                     print(f"Order: '{current_voice_order}'")
+                else:
+                    current_voice_order = connectionTwich.get_comments_and_calculate()
+
 
                 # 4. プロンプト作成
                 # 「音声命令」と「ゲーム状況」の両方を渡して判断させる
                 situation = f"Distance is {response.distance}. State is {response.playerState}."
                 
-                #current_voice_order = connectionTwich.get_comments()
                 if current_voice_order is None:
                     continue
                 if "#" in current_voice_order:
