@@ -35,3 +35,16 @@ curl -L -o qwen2.5-0.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5
 ```
 URL: https://huggingface.co/Qwen/Qwen2.5-0.5B
 
+
+excution
+Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE
+If you don't know how to contoroll FightingICE, Please ask me.
+
+Excute new terminal.
+```bash
+cd client
+```
+```bash
+python client_test.py
+```
+
