@@ -58,8 +58,10 @@ jar cvf data/ai/BitNetAI.jar -C myai_bin .
 
 
 ## 実行方法（excution）
-Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE
+FightingICEを起動してAIの選択時にBitNetAIを選択します. 
+そのあと, 新しいターミナルでこのリポジトリのclientまで移動します. その後, client_text.pyを実行してください.
 
+Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE
 If you don't know how to contoroll FightingICE, Please ask me.
 
 Excute new terminal.
