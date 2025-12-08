@@ -93,7 +93,6 @@ def run():
 
         while True:
             try:
-                print("Connecting to Server (localhost:50051)...")
                 # 1. 現状確認
                 request = pb2.OutputOfBitNet(OutputOfBitNet=next_action)
                 response = stub.GameStream(request)
@@ -128,6 +127,7 @@ def run():
                     continue
                 if "#" in current_voice_order:
                     next_action = current_voice_order
+                    print(next_action)
                 elif current_voice_order.replace(" ", "") in check_list:
                     next_action = current_voice_order.replace(" ", "")
                     next_action = convert_voice_to_command(next_action)

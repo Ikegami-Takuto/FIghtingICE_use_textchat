@@ -65,8 +65,9 @@ public class BitNetAI implements AIInterface {
         String rawCommand = FightingIceGrpcServer.latestCommand;
         System.err.println(rawCommand);
         if (rawCommand.contains("#")) {
-            System.out.println(rawCommand);
             String[] axis = rawCommand.split("_");
+            System.out.println(axis[1]);
+            System.out.println(axis[2]);
             axis[0] = axis[1];
             axis[1] = axis[2];
             //System.out.println((float)Float.parseFloat(axis[0]));
