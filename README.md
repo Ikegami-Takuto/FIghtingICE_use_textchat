@@ -23,3 +23,15 @@ javac -d myai_bin -cp "FightingICE.jar:lib/*" src/gamescene/NewSystemVeil.java s
 ```bash
 jar cvf data/ai/BitNetAI.jar -C myai_bin .
 ```
+#install LLM(Qwen2.5-0.5B)
+```bash
+cd client
+```
+```bash
+cd model
+```
+```bash
+curl -L -o qwen2.5-0.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+```
+URL: https://huggingface.co/Qwen/Qwen2.5-0.5B
+
