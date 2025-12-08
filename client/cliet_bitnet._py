@@ -1,0 +1,214 @@
+import grpc
+import time
+import os
+import sys
+import subprocess
+import platform
+import argparse
+import select
+from pathlib import Path
+
+# 生成されたファイルをインポート
+# (同じディレクトリに bitNetToFightingICE_pb2.py 等がある前提)
+import bitNetToFightingICE_pb2 as pb2
+import bitNetToFightingICE_pb2_grpc as pb2_grpc
+
+class BitNetProcess:
+    def __init__(self, model_path=None, threads=2, ctx_size=2048, temp=0):
+        """
+        llama-cliをサブプロセスとして起動し、入出力を管理するクラス
+        """
+        self.process = None
+        
+        # 現在のファイルのディレクトリを基準にする
+        self.base_dir = Path(__file__).resolve().parent
+        
+        # モデルパスが指定されていない場合はデフォルトを探す
+        if model_path:
+             self.model_path = str(model_path)
+        else:
+             # デフォルト: スクリプトと同じ階層の models/BitNet... を探す
+             # 環境に合わせて調整してください
+             self.model_path = str(self.base_dir / "models" / "BitNet-b1.58-2B-4T" / "ggml-model-i2_s.gguf")
+
+        # 実行ファイルのパス解決
+        build_dir = self.base_dir / "build"
+        if platform.system() == "Windows":
+            main_path = build_dir / "bin" / "Release" / "llama-cli.exe"
+            if not main_path.exists():
+                main_path = build_dir / "bin" / "llama-cli.exe"
+        else:
+            main_path = build_dir / "bin" / "llama-cli"
+
+        if not main_path.exists():
+            print(f"Warning: {main_path} not found. Trying default 'llama-cli' command.")
+            main_path = "llama-cli"
+        else:
+            main_path = str(main_path)
+
+        # 【修正点】会話のフォーマットをInput/Output形式に固定する
+        # AIに役割を与え、例示（Few-shot）を含めることで出力を安定させる
+        self.initial_prompt = (
+            "Role: Game command converter. Valid actions: ['punch', 'kick', 'go', 'back', 'jump']. "
+            "Rules: Output only a JSON list. Map forward to 'go'. Map defense, block, or retreat to 'back'. "
+            "Map attacks to 'punch' or 'kick'.\n"
+            "Input: forward\n"
+            "Output: [\"go\"]\n"
+            "Input: defense\n"
+            "Output: [\"back\"]\n"
+            "Input: "
+        )
+
+        self.command = [
+            main_path,
+            '-m', self.model_path,
+            '-t', str(threads),
+            '-c', str(ctx_size),
+            '--temp', str(temp),
+            '-n', '128',
+            '-cnv',
+            '-p', self.initial_prompt, # 会話テンプレート
+            '-r', 'Input:',            # 停止ワード（次のInputが来たら止める）
+            '--in-prefix', ' ',
+            '-ngl', '0',
+            '-b', '1'
+        ]
+
+        print(f"Starting BitNet process: {' '.join(self.command)}")
+        
+        # プロセスの起動（パイプで入出力を繋ぐ）
+        self.process = subprocess.Popen(
+            self.command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, # エラーも標準出力に混ぜる
+            text=True,                # テキストモード
+            bufsize=1                 # 行バッファリング
+        )
+        
+        # 起動時のロゴやロード情報を読み飛ばし、入力待機状態になるまで待つ
+        print("Initializing model... please wait.")
+        self._read_until_prompt()
+        print("Model initialized and ready.")
+
+    def _read_until_prompt(self):
+        """
+        'Input:' というプロンプトが出るまで出力を読み捨てる（またはバッファリングする）
+        """
+        output_buffer = []
+        while True:
+            line = self.process.stdout.readline()
+            if not line:
+                break
+            
+            # ログ表示（デバッグ用）
+            print(f"[BitNet]: {line.strip()}")
+
+            output_buffer.append(line)
+            
+            # 停止ワードを検知したらループを抜ける
+            if "Input:" in line or "Input :" in line:
+                break
+        return "".join(output_buffer)
+
+    def predict(self, prompt_text):
+        """
+        テキストを入力し、AIの応答を取得する
+        """
+        if self.process.poll() is not None:
+            raise Exception("BitNet process has died.")
+
+        # 入力を送信 (改行コードを付与)
+        # prompt_textには "enemy approaching" などの状況説明が入る想定
+        input_str = prompt_text.replace('\n', ' ') + "\n"
+        self.process.stdin.write(input_str)
+        self.process.stdin.flush()
+
+        # 応答を受信
+        response = self._read_until_prompt()
+        
+        # 整形処理: 
+        # 1. 自分の入力(echo)を除去
+        # 2. "Input:", "Output:" などの装飾を除去して中身だけ取り出す
+        response = response.replace(prompt_text, "")
+        response = response.replace("Input:", "")
+        response = response.replace("Output:", "")
+        response = response.replace("Input", "")
+        
+        return response.strip()
+
+    def close(self):
+        if self.process:
+            self.process.terminate()
+
+def run():
+    # BitNetプロセスの起動
+    # パスはクラス内で自動解決を試みますが、明示的に指定も可能
+    try:
+        bitnet = BitNetProcess()
+    except Exception as e:
+        print(f"Failed to start BitNet: {e}")
+        return
+
+    print("Python Client: Connecting to FightingICE Server...")
+    
+    # 2. サーバー(Java)に接続
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = pb2_grpc.FightingIceServerStub(channel)
+        
+        current_action = "STAND_B" 
+
+        while True:
+            try:
+                # --- ゲームループ ---
+                
+                # A. サーバーへ送信 ＆ 新しいGameState受信
+                request = pb2.OutputOfBitNet(OutputOfBitNet=current_action)
+                response = stub.GameStream(request)
+                
+                print(f"-----------------------------")
+                print(f"Current Game State : Dist={response.distance}, State={response.playerState}")
+
+                # B. BitNetへの入力作成
+                # 【変更点】Pythonのinput()関数でユーザーの手入力を待つ
+                input_text = input("BitNetへの指示を入力 (例: forward): ")
+
+                # 'exit' と入力されたら終了する処理を追加しておくと便利です
+                if input_text.lower() == 'exit':
+                    print("Exiting...")
+                    break
+                
+                # C. 推論実行
+                start_time = time.time()
+                # predict("some context") -> BitNet -> "Output: ['action']" -> Input: (停止)
+                next_action_raw = bitnet.predict(input_text)
+                process_time = time.time() - start_time
+                
+                # 出力整形 (JSONっぽいリストから中身を取り出す簡易処理)
+                # 例: "['go']" -> "go"
+                next_action = next_action_raw.replace("['", "").replace("']", "").replace('["', '').replace('"]', '')
+                next_action = next_action.strip()
+                
+                # 空文字ガード
+                if not next_action:
+                    next_action = "CROUCH_GUARD" 
+
+                print(f"BitNet Response: '{next_action}' ({process_time:.4f}s)")
+                
+                current_action = next_action
+
+                # time.sleep(0.016)
+
+            except grpc.RpcError as e:
+                print("Server is not ready yet or disconnected. Retrying...")
+                time.sleep(1)
+            except KeyboardInterrupt:
+                print("Stopping client...")
+                bitnet.close()
+                break
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                time.sleep(1)
+
+if __name__ == '__main__':
+    run()

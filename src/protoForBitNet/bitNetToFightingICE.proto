@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package serverForBitNet;
+
+service FightingIceServer {
+  rpc GameStream (OutputOfBitNet) returns (GameState) {}
+}
+
+message OutputOfBitNet {
+  string OutputOfBitNet = 1;
+}
+
+message GameState {
+  string distance = 1;
+  string lightPositions = 2;
+  string playerState = 3;
+  string isbusy = 4;
+}

@@ -1,0 +1,2 @@
+javac -cp "./lib/*:./lib/lwjgl/*:./lib/grpc/*" -d bin src/**/*.java|jar cvf FightingICE.jar -C bin .
+#java -XstartOnFirstThread -cp "FightingICE.jar:./lib/*:./lib/lwjgl/*:./lib/lwjgl/natives/macos/arm64/*:./lib/grpc/*" Main --limithp 400 400 --grey-bg

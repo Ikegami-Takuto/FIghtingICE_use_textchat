@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch FightingICE (with args)",
+            "request": "launch",
+            "mainClass": "Main",
+            "projectName": "FightingICE-7.0",
+            "vmArgs": "-XstartOnFirstThread",
+            "args": [
+                "--limithp",
+                "400",
+                "400",
+                "--grey-bg"
+            ],
+            "classPaths": [
+                "FightingICE.jar",
+                "lib/*",
+                "lib/lwjgl/*",
+                "lib/lwjgl/natives/macos/arm64/*",
+                "lib/grpc/*"
+            ]
+        }
+    ]
+}

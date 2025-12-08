@@ -1,0 +1,123 @@
+import grpc
+import time
+import random
+import os
+import glob
+import numpy as np
+from llama_cpp import Llama
+from pathlib import Path
+
+# 生成されたファイルをインポート
+import bitNetToFightingICE_pb2 as pb2
+import bitNetToFightingICE_pb2_grpc as pb2_grpc
+
+#BitNetが正しいか確認するようための配列
+action_labels =[
+    "FORWARD_WALK",
+    "DASH",
+    "BACK_STEP",
+    "CROUCH",
+    "JUMP",
+    "FOR_JUMP",
+    "BACK_JUMP",
+    "STAND_GUARD",
+    "CROUCH_GUARD",
+    "AIR_GUARD",
+    "THROW_A",
+    "THROW_B",
+    "STAND_A",
+    "STAND_B",
+    "CROUCH_A",
+    "CROUCH_B",
+    "AIR_A",
+    "AIR_B",
+    "AIR_DA",
+    "AIR_DB",
+    "STAND_FA",
+    "STAND_FB",
+    "CROUCH_FA",
+    "CROUCH_FB",
+    "AIR_FA",
+    "AIR_FB",
+    "AIR_UA",
+    "AIR_UB",
+    "STAND_D_DF_FA",
+    "STAND_D_DF_FB",
+    "STAND_F_D_DFA",
+    "STAND_F_D_DFB",
+    "STAND_D_DB_BA",
+    "STAND_D_DB_BB",
+    "AIR_D_DF_FA",
+    "AIR_D_DF_FB",
+    "AIR_F_D_DFA",
+    "AIR_F_D_DFB",
+    "AIR_D_DB_BA",
+    "AIR_D_DB_BB",
+    "STAND_D_DF_FC"
+]
+print("load model ...")
+path = "/Users/takuto/program/FightingICE-7.0/client/bitnet/models/BitNet-b1.58-2B-4T/ggml-model-i2_s.gguf"
+#path = str(Path(os.getcwd(), "bitnet", "model", "BitNet-b1.58-2B-4T", "ggml-model-i2_s.gguf"))
+# llm = Llama(model_path=path, 
+#     n_gpu_layers=-1, # GPUをフル使用
+#     n_ctx=512,       # コンテキストサイズ（格ゲーなら短くてOK）
+#     verbose=False)   # 余計なログを出さない)
+#path = "/Users/takuto/program/FightingICE-7.0/client/bitnet/models/tinyllama-1.1b-chat.Q4_K_M.gguf"
+
+print(f"Loading Model from: {path}")
+llm = Llama(
+    model_path=path,
+    n_gpu_layers=-1,
+    n_ctx=512,
+    verbose=False
+)
+
+
+#prompt = np.loadtxt("prompt.txt")
+
+distance = 0
+light_sight_x = 0
+# ファイルを開いて、中身を文字列として読み込む
+with open("prompt.txt", "r", encoding="utf-8") as f:
+    prompt = f.read().strip()
+print(llm(prompt=prompt, stop=["\n"], echo=False))
+def run():
+    print("Python Client: Connecting to FightingICE Server...")
+    # 1. サーバー(Java)に接続
+    # "localhost:50051" はサーバーで設定したポートと同じにする
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = pb2_grpc.FightingIceServerStub(channel)
+
+        while True:
+            try:
+                input_text = input("BitNetへの指示を入力 (例: jumping): ")
+                next_action = llm(prompt=f"{distance},{light_sight_x},{input_text}")
+                print(f"------------{next_action}----------")
+                # 2. リクエストデータの作成
+                # .protoで定義した "OutputOfBitNet" メッセージを作る
+                # 引数名は .proto の "string OutputOfBitNet = 1;" に合わせる
+                request = pb2.OutputOfBitNet(OutputOfBitNet=next_action)
+
+                # 3. サーバーに送信＆返信(GameState)を受け取る
+                # Pythonでは .proto の定義通り "GameStream" (大文字) で呼ぶことが多いです
+                response = stub.GameStream(request)
+
+                # 4. 受け取ったゲーム状況を表示
+                print(f"-----------------------------")
+                print(response)
+                print(f"Send Command : {next_action}")
+                print(f"Game State : Dist={response.distance}, State={response.playerState}")
+
+                # 少し待機（連打しすぎないように）
+                time.sleep(0.1)
+
+            except grpc.RpcError as e:
+                # サーバーがまだ起動していない時などのエラー処理
+                print("Server is not ready yet. Retrying...")
+                time.sleep(1)
+            except KeyboardInterrupt:
+                print("Stopping client...")
+                break
+
+if __name__ == '__main__':
+    run()

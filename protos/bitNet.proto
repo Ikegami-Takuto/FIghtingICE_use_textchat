@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package service;
+
+// gRPCのJavaパッケージ名を指定するオプション
+option java_package = "protoc"; 
+option java_outer_classname = "BitNetProto";
+option csharp_namespace = "DareFightingICE.Grpc.Proto";
+
+message CommandRequest {
+  string instruction = 1;
+}
+
+message CommandResponse {
+  string command = 1;
+}
+
+service BitNetInference {
+  rpc GenerateCommand (CommandRequest) returns (CommandResponse);
+}
