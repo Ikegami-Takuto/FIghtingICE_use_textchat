@@ -3,7 +3,9 @@
 Now, you can only use text chat.
 
 ##Compile FightingICE
-```mkdir bin```
+```bash
+mkdir bin
+```
 ```javac -cp "./lib/*:./lib/lwjgl/*:./lib/grpc/*" -d bin src/**/*.java|jar cvf FightingICE.jar -C bin .```
 ```jar cvf FightingICE.jar -C bin . ```
 
