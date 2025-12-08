@@ -37,7 +37,8 @@ URL: https://huggingface.co/Qwen/Qwen2.5-0.5B
 
 
 excution
-Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE\\
+Excution of FightingICE : please check official. https://github.com/TeamFightingICE/FightingICE
+
 If you don't know how to contoroll FightingICE, Please ask me.
 
 Excute new terminal.
